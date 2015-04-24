@@ -1,5 +1,4 @@
-#![feature(phase)]
-#[phase(plugin, link)] extern crate log;
+#[macro_use] extern crate log;
 
 extern crate ssh;
 

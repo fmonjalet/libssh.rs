@@ -9,3 +9,6 @@ version = "0.0.1"
 authors = ["Manuel Schölling <manuel.schoelling@gmx.de>"]
 license = "GPL-2.0"
 
+[dependencies]
+log = "*"
+libc = "*"

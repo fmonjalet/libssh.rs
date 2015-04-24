@@ -2471,7 +2471,7 @@ struct fd_set
 */
 #[repr(C)]
 pub struct fd_set {
-	__fds_bits: [libc::c_long, ..16],
+	__fds_bits: [libc::c_long; 16],
 }
 
 /*
@@ -2488,7 +2488,7 @@ enum ssh_kex_types_e {
 	SSH_LANG_S_C =	0x00000009 (9)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_kex_types_e {
 	SSH_KEX =	0,
@@ -2524,7 +2524,7 @@ enum ssh_auth_e {
 	SSH_AUTH_ERROR =	0x-0000001 (-1)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(i32)]
 pub enum ssh_auth_e {
 	SSH_AUTH_SUCCESS =	0,
@@ -2555,7 +2555,7 @@ enum ssh_requests_e {
 	SSH_REQUEST_GLOBAL =	0x00000005 (5)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_requests_e {
 	SSH_REQUEST_AUTH =	1,
@@ -2585,7 +2585,7 @@ enum ssh_channel_type_e {
 	SSH_CHANNEL_X11 =	0x00000004 (4)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_channel_type_e {
 	SSH_CHANNEL_UNKNOWN =	0,
@@ -2618,7 +2618,7 @@ enum ssh_channel_requests_e {
 	SSH_CHANNEL_REQUEST_X11 =	0x00000007 (7)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_channel_requests_e {
 	SSH_CHANNEL_REQUEST_UNKNOWN =	0,
@@ -2649,7 +2649,7 @@ enum ssh_global_requests_e {
 	SSH_GLOBAL_REQUEST_CANCEL_TCPIP_FORWARD =	0x00000002 (2)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_global_requests_e {
 	SSH_GLOBAL_REQUEST_UNKNOWN =	0,
@@ -2676,7 +2676,7 @@ enum ssh_publickey_state_e {
 	SSH_PUBLICKEY_STATE_WRONG =	0x00000002 (2)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(i32)]
 pub enum ssh_publickey_state_e {
 	SSH_PUBLICKEY_STATE_ERROR =	-1,
@@ -2706,7 +2706,7 @@ enum ssh_server_known_e {
 	SSH_SERVER_FILE_NOT_FOUND =	0x00000004 (4)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(i32)]
 pub enum ssh_server_known_e {
 	SSH_SERVER_ERROR =	-1,
@@ -2736,7 +2736,7 @@ enum ssh_error_types_e {
 	SSH_EINTR =	0x00000003 (3)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_error_types_e {
 	SSH_NO_ERROR =	0,
@@ -2765,7 +2765,7 @@ enum ssh_keytypes_e {
 	SSH_KEYTYPE_ECDSA =	0x00000004 (4)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_keytypes_e {
 	SSH_KEYTYPE_UNKNOWN =	0,
@@ -2792,7 +2792,7 @@ enum ssh_keycmp_e {
 	SSH_KEY_CMP_PRIVATE =	0x00000001 (1)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_keycmp_e {
 	SSH_KEY_CMP_PUBLIC =	0,
@@ -2858,7 +2858,7 @@ enum ssh_options_e {
 	SSH_OPTIONS_GSSAPI_DELEGATE_CREDENTIALS =	0x0000001C (28)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_options_e {
 	SSH_OPTIONS_HOST =	0,
@@ -2923,7 +2923,7 @@ enum ssh_scp_request_types {
 	SSH_SCP_REQUEST_WARNING =	0x00000005 (5)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_scp_request_types {
 	SSH_SCP_REQUEST_NEWDIR =	1,
@@ -2950,7 +2950,7 @@ enum ssh_publickey_hash_type {
 	SSH_PUBLICKEY_HASH_MD5 =	0x00000001 (1)
 }
 */
-#[deriving(Copy, PartialEq, Show)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(u32)]
 pub enum ssh_publickey_hash_type {
 	SSH_PUBLICKEY_HASH_SHA1 =	0,

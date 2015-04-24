@@ -29,7 +29,7 @@ impl SSHMessage {
 		let session: *mut ssh_session_struct = unsafe {
 			mem::transmute(session.raw())
 		};
-		assert!(session.is_not_null());
+		assert!(!session.is_null());
 
 		let msg = unsafe { ssh_message_get(session) };
 		if msg.is_null() {
@@ -45,20 +45,20 @@ impl SSHMessage {
 	}
 
 	pub fn get_type(self: &Self) -> ssh_requests_e {
-		assert!(self._msg.is_not_null());
+		assert!(!self._msg.is_null());
 
 		let ityp = unsafe { ssh_message_type(self._msg) };
 		ssh_requests_e::from_u32(ityp as u32)
 	}
 
 	pub fn get_subtype(self: &Self) -> i32 {
-		assert!(self._msg.is_not_null());
+		assert!(!self._msg.is_null());
 
 		unsafe { ssh_message_subtype(self._msg) }
 	}
 
 	pub fn reply_default(&self) -> Result<(), &'static str> {
-		assert!(self._msg.is_not_null());
+		assert!(!self._msg.is_null());
 
 		let res = unsafe { ssh_message_reply_default(self._msg) };
 		match res {

@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-#[phase(plugin, link)] extern crate log;
 
 extern crate libc;
 
@@ -11,6 +10,7 @@ use ssh_session::SSHSession;
 use self::libc::types::common::c95::c_void;
 use std::ptr;
 use std::mem;
+use std::ffi::CString;
 
 type AuthCb = extern fn(*const i8, *mut i8, u64, i32, i32, *mut libc::types::common::c95::c_void) -> i32;
 
@@ -28,56 +28,53 @@ impl Drop for SSHKey {
 
 impl SSHKey {
 	pub fn raw(&self) -> *mut ssh_key_struct {
-		assert!(self._key.is_not_null());
+		assert!(!self._key.is_null());
 		self._key
 	}
 
 	pub fn private_key_from_base64(b64_key: &str) -> Result<SSHKey, ()> {
-		b64_key.with_c_str(|b64_ptr| {
-			let mut key = 0 as *mut ssh_key_struct;
+        let b64_cstr = CString::new(b64_key).unwrap();
+        let mut key = 0 as *mut ssh_key_struct;
 
-			let pwd = ptr::null();
-			let auth_fn: Option<AuthCb> = Option::None;
-			let auth_data = 0 as *mut c_void;
+        let pwd = ptr::null();
+        let auth_fn: Option<AuthCb> = Option::None;
+        let auth_data = 0 as *mut c_void;
 
-			let func = ssh_pki_import_privkey_base64;
-			let res = unsafe {
-				func(b64_ptr, pwd, auth_fn, auth_data, &mut key)
-			};
-			match res {
-				SSH_OK => {
-					assert!(key.is_not_null());
-					Ok(SSHKey { _key: key })
-				},
-				_ => Err(()),
-			}
-		})
-	}
+        let func = ssh_pki_import_privkey_base64;
+        let res = unsafe {
+            func(b64_cstr.as_ptr(), pwd, auth_fn, auth_data, &mut key)
+        };
+        match res {
+            SSH_OK => {
+                assert!(!key.is_null());
+                Ok(SSHKey { _key: key })
+            },
+            _ => Err(()),
+        }
+    }
 
 	pub fn public_key_from_base64(b64_key: &str, typ: u32) -> Result<SSHKey, ()> {
 		let mut key = 0 as *mut ssh_key_struct;
+        let b64_cstr = CString::new(b64_key).unwrap();
+        let res = unsafe {
+            ssh_pki_import_pubkey_base64(b64_cstr.as_ptr(), typ, &mut key)
+        };
 
-		b64_key.with_c_str(|b64_ptr| {
-			let res = unsafe {
-				ssh_pki_import_pubkey_base64(b64_ptr, typ, &mut key)
-			};
-
-			match res {
-				SSH_OK => {
-					assert!(key.is_not_null());
-					Ok(SSHKey { _key: key })
-				},
-				_ => Err(()),
-			}
-		})
-	}
+        match res {
+            SSH_OK => {
+                assert!(!key.is_null());
+                Ok(SSHKey { _key: key })
+            },
+            _ => Err(()),
+        }
+    }
 
 	/* used by client to get server's public key */
 	pub fn from_session(session: &SSHSession)
 			-> Result<SSHKey, &'static str>
 	{
 		let session_ptr = session.raw();
-		assert!(session_ptr.is_not_null());
+		assert!(!session_ptr.is_null());
 
 		let mut key = 0 as *mut ssh_key_struct;
 
@@ -87,7 +84,7 @@ impl SSHKey {
 		
 		match res {
 			SSH_OK => {
-				assert!(key.is_not_null());
+				assert!(!key.is_null());
 				Ok(SSHKey { _key: key })
 			},
 			_ => Err("ssh_get_publickey() failed")
@@ -99,7 +96,7 @@ impl SSHKey {
 		-> Result<SSHKey, &'a str>
 	{
 		let msg = message.raw();
-		assert!(msg.is_not_null());
+		assert!(!msg.is_null());
 
 		let type_ = message.get_type();
 		let subtype = message.get_subtype();
@@ -128,12 +125,12 @@ impl SSHKey {
 	}
 
 	pub fn is_private(&self) -> bool {
-		assert!(self._key.is_not_null());
+		assert!(!self._key.is_null());
 		unsafe { ssh_key_is_private(self._key) != 0 }
 	}
 
 	pub fn is_public(&self) -> bool {
-		assert!(self._key.is_not_null());
+		assert!(!self._key.is_null());
 		unsafe { ssh_key_is_public(self._key) != 0 }
 	}
 
