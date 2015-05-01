@@ -1,9 +1,9 @@
 #[macro_use] extern crate log;
 
-extern crate ssh;
+extern crate libssh;
 
 use std::sync::{Arc, Barrier};
-use std::thread::Thread;
+use std::thread::spawn;
 
 const PRIVATE_KEY1: &'static str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpgIBAAKCAQEAtVRiaUPBXiqVNw4By07q+nqDAfIKzuo2Nrdm2TbNMaZzcbY4
@@ -36,32 +36,32 @@ ikwcwZIsiVeoAm6m5J1wKxAdpkz/JDR+x20SJrnFeITAMGaUsqf6JP4SqyazD+0C
 const HOST: &'static str = "127.0.0.1";
 
 fn client(barrier: &Arc<Barrier>) {
-	let priv_key = ssh::ssh_key::SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
+	let priv_key = libssh::ssh_key::SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
 	assert!(priv_key.is_public());
 
-	let session = ssh::ssh_session::SSHSession::new(Some(HOST.deref())).unwrap();
-	session.set_log_level(ssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
+	let session = libssh::ssh_session::SSHSession::new(Some(HOST)).unwrap();
+	session.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
 	session.set_port("2222").unwrap();
 
 	info!("client: waiting for server...");
 	barrier.wait();
 	
 	info!("client: connecting...");
-	session.connect(|remote_public_key| {
+	session.connect(|_remote_public_key| {
 		return true;
 	}).unwrap();
 	info!("client: connected to {}", HOST);
 
-	let res = session.auth_by_public_key(None, &priv_key);
+	let _res = session.auth_by_public_key(None, &priv_key);
 	info!("client: authenticated");
 	session.disconnect();
 }
 
 fn server(barrier: &Arc<Barrier>) {
-	let session = ssh::ssh_session::SSHSession::new(None).unwrap();
+	let session = libssh::ssh_session::SSHSession::new(None).unwrap();
 
-	let bind = ssh::ssh_bind::SSHBind::new("/home/manuel/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
-	bind.set_log_level(ssh::libssh::SSH_LOG_NOLOG/*_FUNCTIONS*/).unwrap();
+	let bind = libssh::ssh_bind::SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
+	bind.set_log_level(libssh::libssh::SSH_LOG_NOLOG/*_FUNCTIONS*/).unwrap();
 
 	bind.listen().unwrap();
 	info!("server: listening");
@@ -73,7 +73,7 @@ fn server(barrier: &Arc<Barrier>) {
 	session.handle_key_exchange().unwrap();
 	info!("server: handle_key_exchange() done");
 
-	let res = session.auth_with_public_key(|remote_public_key| {
+	let _res = session.auth_with_public_key(|_remote_public_key| {
 		info!("server: client pubkey");
 		true
 	}).unwrap();
@@ -85,9 +85,9 @@ fn server(barrier: &Arc<Barrier>) {
 fn main() {
 	let barrier = Arc::new(Barrier::new(2));
 
-	ssh::with_ssh(|| {
+	libssh::with_ssh(|| {
 		let b = barrier.clone();
-		Thread::spawn(move || { client(&b) }).detach();
+		spawn(move || { client(&b) });
 		server(&barrier);
 	})
 }

@@ -10,6 +10,10 @@ authors = ["Manuel Schölling <manuel.schoelling@gmx.de>"]
 license = "GPL-2.0"
 link = "ssh"
 
+[[bin]]
+name = "example"
+path = "src/example.rs"
+
 [dependencies]
 log = "*"
 libc = "*"
