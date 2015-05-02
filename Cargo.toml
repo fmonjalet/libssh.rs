@@ -11,10 +11,17 @@ license = "GPL-2.0"
 link = "ssh"
 
 [[bin]]
+name = "password-server"
+path = "src/password-server.rs"
+
+[[bin]]
 name = "example"
 path = "src/example.rs"
 
 [dependencies]
 log = "*"
+env_logger = "*"
 libc = "*"
+enum_primitive = "*"
+num = "*"
 

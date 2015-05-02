@@ -1,5 +1,3 @@
-#[macro_use] extern crate log;
-
 extern crate libssh;
 
 use std::sync::{Arc, Barrier};
@@ -36,58 +34,58 @@ ikwcwZIsiVeoAm6m5J1wKxAdpkz/JDR+x20SJrnFeITAMGaUsqf6JP4SqyazD+0C
 const HOST: &'static str = "127.0.0.1";
 
 fn client(barrier: &Arc<Barrier>) {
-	let priv_key = libssh::ssh_key::SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
-	assert!(priv_key.is_public());
+    let priv_key = libssh::ssh_key::SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
+    assert!(priv_key.is_public());
 
-	let session = libssh::ssh_session::SSHSession::new(Some(HOST)).unwrap();
-	session.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
-	session.set_port("2222").unwrap();
+    let session = libssh::ssh_session::SSHSession::new(Some(HOST)).unwrap();
+    session.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
+    session.set_port("2222").unwrap();
 
-	info!("client: waiting for server...");
-	barrier.wait();
-	
-	info!("client: connecting...");
-	session.connect(|_remote_public_key| {
-		return true;
-	}).unwrap();
-	info!("client: connected to {}", HOST);
+    println!("client: waiting for server...");
+    barrier.wait();
+    
+    println!("client: connecting...");
+    session.connect(|_remote_public_key| {
+        return true;
+    }).unwrap();
+    println!("client: connected to {}", HOST);
 
-	let _res = session.auth_by_public_key(None, &priv_key);
-	info!("client: authenticated");
-	session.disconnect();
+    let _res = session.auth_by_public_key(None, &priv_key);
+    println!("client: authenticated");
+    session.disconnect();
 }
 
 fn server(barrier: &Arc<Barrier>) {
-	let session = libssh::ssh_session::SSHSession::new(None).unwrap();
+    let session = libssh::ssh_session::SSHSession::new(None).unwrap();
 
-	let bind = libssh::ssh_bind::SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
-	bind.set_log_level(libssh::libssh::SSH_LOG_NOLOG/*_FUNCTIONS*/).unwrap();
+    let bind = libssh::ssh_bind::SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
+    bind.set_log_level(libssh::libssh::SSH_LOG_FUNCTIONS).unwrap();
 
-	bind.listen().unwrap();
-	info!("server: listening");
-	barrier.wait();
+    bind.listen().unwrap();
+    println!("server: listening");
+    barrier.wait();
 
-	bind.accept(&session).unwrap();
-	info!("server: accepted");
+    bind.accept(&session).unwrap();
+    println!("server: accepted");
 
-	session.handle_key_exchange().unwrap();
-	info!("server: handle_key_exchange() done");
+    session.handle_key_exchange().unwrap();
+    println!("server: handle_key_exchange() done");
 
-	let _res = session.auth_with_public_key(|_remote_public_key| {
-		info!("server: client pubkey");
-		true
-	}).unwrap();
-	info!("yay!");
+    let _res = session.auth_with_public_key(|_remote_public_key| {
+        println!("server: client pubkey");
+        true
+    }).unwrap();
+    println!("yay!");
 
-	session.disconnect();
+    session.disconnect();
 }
 
 fn main() {
-	let barrier = Arc::new(Barrier::new(2));
+    let barrier = Arc::new(Barrier::new(2));
 
-	libssh::with_ssh(|| {
-		let b = barrier.clone();
-		spawn(move || { client(&b) });
-		server(&barrier);
-	})
+    libssh::with_ssh(|| {
+        let b = barrier.clone();
+        spawn(move || { client(&b) });
+        server(&barrier);
+    })
 }

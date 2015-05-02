@@ -15,190 +15,190 @@ use self::libc::types::os::arch::c95::c_uint;
 use std::ffi::{CString, CStr};
 
 pub struct SSHSession {
-	_session: *mut ssh_session_struct
+    _session: *mut ssh_session_struct
 }
 
 impl SSHSession {
-	pub fn new(host: Option<&str>) -> Result<SSHSession, ()> {
-		let ptr = unsafe { ssh_new() };
-		assert!(!ptr.is_null());
+    pub fn new(host: Option<&str>) -> Result<SSHSession, ()> {
+        let ptr = unsafe { ssh_new() };
+        assert!(!ptr.is_null());
 
-		let session = SSHSession {_session: ptr};
-		if host.is_some() {
-			try!(session.set_host(host.unwrap()))
-		}
+        let session = SSHSession {_session: ptr};
+        if host.is_some() {
+            try!(session.set_host(host.unwrap()))
+        }
 
-		Ok(session)
-	}
+        Ok(session)
+    }
 
-	pub fn set_host(&self, host: &str) -> Result<(),()> {
-		assert!(!self._session.is_null());
+    pub fn set_host(&self, host: &str) -> Result<(),()> {
+        assert!(!self._session.is_null());
 
-		let opt = ssh_options_e::SSH_OPTIONS_HOST as u32;
+        let opt = ssh_options_e::SSH_OPTIONS_HOST as u32;
         let host_cstr = CString::new(host).unwrap();
-		let res = unsafe {
+        let res = unsafe {
             ssh_options_set(self._session, opt,
                             host_cstr.as_ptr() as *const c_void)
         };
 
-		match res {
-			SSH_OK => Ok(()),
-			_           => Err(())
-		}
-	}
+        match res {
+            SSH_OK => Ok(()),
+            _      => Err(())
+        }
+    }
 
-	pub fn connect<F>(&self, verify_public_key: F)
-			-> Result<(), String>
+    pub fn connect<F>(&self, verify_public_key: F)
+            -> Result<(), String>
             where F: Fn(&SSHKey) -> bool
-	{
-		assert!(!self._session.is_null());
+    {
+        assert!(!self._session.is_null());
 
-		let res = unsafe { ssh_connect(self._session) };
-		if res != SSH_OK {
-			let ptr = self._session as *mut c_void;
+        let res = unsafe { ssh_connect(self._session) };
+        if res != SSH_OK {
+            let ptr = self._session as *mut c_void;
 
-			let err_msg = unsafe {
-				let err = ssh_get_error(ptr);
-				assert!(!err.is_null());
+            let err_msg = unsafe {
+                let err = ssh_get_error(ptr);
+                assert!(!err.is_null());
 
-				from_utf8(CStr::from_ptr(err).to_bytes()).ok().unwrap()
+                from_utf8(CStr::from_ptr(err).to_bytes()).ok().unwrap()
                                                               .to_string()
-			};
-			return Err(err_msg);
-		}
+            };
+            return Err(err_msg);
+        }
 
-		let remote_public_key = try!(
-			SSHKey::from_session(self).map_err(|err| err.to_string())
-		);
-		if !verify_public_key(&remote_public_key) {
-			self.disconnect();
-			return Err("authentication failed".to_string());
-		}
-		else {
-			Ok(())
-		}
-	}
+        let remote_public_key = try!(
+            SSHKey::from_session(self).map_err(|err| err.to_string())
+        );
+        if !verify_public_key(&remote_public_key) {
+            self.disconnect();
+            return Err("authentication failed".to_string());
+        }
+        else {
+            Ok(())
+        }
+    }
 
-	pub fn disconnect(&self) {
-		assert!(!self._session.is_null());
+    pub fn disconnect(&self) {
+        assert!(!self._session.is_null());
 
-		unsafe {
-			ssh_disconnect(self._session);
-		}
-	}
+        unsafe {
+            ssh_disconnect(self._session);
+        }
+    }
 
-	pub fn auth_by_public_key(&self, username: Option<&str>, pubkey: &SSHKey)
-		-> Result<(),ssh_auth_e>
-	{
-		/*
-		    SSH_AUTH_ERROR: A serious error happened.
-		    SSH_AUTH_DENIED: The server doesn't accept that public key as an authentication token. Try another key or another method.
-		    SSH_AUTH_PARTIAL: You've been partially authenticated, you still have to use another method.
-		    SSH_AUTH_SUCCESS: The public key is accepted, you want now to use ssh_userauth_pubkey(). SSH_AUTH_AGAIN: In nonblocking mode, you've got to call this again later.
-		*/
-		assert!(!self._session.is_null());
+    pub fn auth_by_public_key(&self, username: Option<&str>, pubkey: &SSHKey)
+        -> Result<(),ssh_auth_e>
+    {
+        /*
+            SSH_AUTH_ERROR: A serious error happened.
+            SSH_AUTH_DENIED: The server doesn't accept that public key as an authentication token. Try another key or another method.
+            SSH_AUTH_PARTIAL: You've been partially authenticated, you still have to use another method.
+            SSH_AUTH_SUCCESS: The public key is accepted, you want now to use ssh_userauth_pubkey(). SSH_AUTH_AGAIN: In nonblocking mode, you've got to call this again later.
+        */
+        assert!(!self._session.is_null());
 
-		let key = pubkey.raw();
-		let func = |usr| unsafe {
-			ssh_userauth_try_publickey(self._session, usr, key)
-		};
+        let key = pubkey.raw();
+        let func = |usr| unsafe {
+            ssh_userauth_try_publickey(self._session, usr, key)
+        };
 
-		let ires = match username {
+        let ires = match username {
             Option::Some(usrn_str)  =>
                     func(CString::new(usrn_str).unwrap().as_ptr()),
             Option::None            => func(ptr::null())
         };
 
-		let res = ssh_auth_e::from_i32(ires);
-		match res {
-			ssh_auth_e::SSH_AUTH_SUCCESS => Ok(()),
-			ssh_auth_e::SSH_AUTH_PARTIAL |
-			ssh_auth_e::SSH_AUTH_DENIED |
-			ssh_auth_e::SSH_AUTH_AGAIN |
-			ssh_auth_e::SSH_AUTH_ERROR => Err(res),
-			x => {panic!("{:?}", x);}
-		}
-	}
+        let res = ssh_auth_e::from_i32(ires);
+        match res {
+            ssh_auth_e::SSH_AUTH_SUCCESS => Ok(()),
+            ssh_auth_e::SSH_AUTH_PARTIAL |
+            ssh_auth_e::SSH_AUTH_DENIED |
+            ssh_auth_e::SSH_AUTH_AGAIN |
+            ssh_auth_e::SSH_AUTH_ERROR => Err(res),
+            x => {panic!("{:?}", x);}
+        }
+    }
 
-	pub fn raw(&self) -> *mut ssh_session_struct {
-		assert!(!self._session.is_null());
-		self._session
-	}
+    pub fn raw(&self) -> *mut ssh_session_struct {
+        assert!(!self._session.is_null());
+        self._session
+    }
 
-	pub fn set_port(&self, port: &str) -> Result<(),&'static str> {
-		assert!(!self._session.is_null());
+    pub fn set_port(&self, port: &str) -> Result<(),&'static str> {
+        assert!(!self._session.is_null());
 
-		let opt = ssh_options_e::SSH_OPTIONS_PORT as u32;
+        let opt = ssh_options_e::SSH_OPTIONS_PORT as u32;
         let p = CString::new(port).unwrap();
-		let res = unsafe {
-			ssh_options_set(self._session, opt, p.as_ptr() as *const c_void)
-		};
+        let res = unsafe {
+            ssh_options_set(self._session, opt, p.as_ptr() as *const c_void)
+        };
 
-		match res {
-			SSH_OK => Ok(()),
-			_              => Err("ssh_options_set() failed for setting port")
-		}
-	}
+        match res {
+            SSH_OK => Ok(()),
+            _      => Err("ssh_options_set() failed for setting port")
+        }
+    }
 
-	pub fn auth_with_public_key<'a, F>(&self, verify_public_key: F)
-			-> Result<(),&'a str>
+    pub fn auth_with_public_key<'a, F>(&self, verify_public_key: F)
+            -> Result<(),&'a str>
             where F: Fn(&SSHKey) -> bool
-	{
-		const MAX_ATTEMPTS: c_uint = 5;
+    {
+        const MAX_ATTEMPTS: c_uint = 5;
 
-		for _  in 0..MAX_ATTEMPTS {
-			let msg = try!(SSHMessage::from_session(self));
+        for _  in 0..MAX_ATTEMPTS {
+            let msg = try!(SSHMessage::from_session(self));
 
-			let type_ = msg.get_type();
-			let subtype = msg.get_subtype();
+            let type_ = msg.get_type();
+            let subtype = msg.get_subtype();
 
-			match (type_, subtype) {
-				(libssh_server::ssh_requests_e::SSH_REQUEST_AUTH,
-						libssh_server::SSH_AUTH_METHOD_PUBLICKEY) =>
-				{
-					let remote_public_key = try!(SSHKey::from_message(&msg));
-					
-					if verify_public_key(&remote_public_key) {
-						return Ok(());
-					}
-				},
+            match (type_, subtype) {
+                (libssh_server::ssh_requests_e::SSH_REQUEST_AUTH,
+                        libssh_server::SSH_AUTH_METHOD_PUBLICKEY) =>
+                {
+                    let remote_public_key = try!(SSHKey::from_message(&msg));
+                    
+                    if verify_public_key(&remote_public_key) {
+                        return Ok(());
+                    }
+                },
 
-				_ => {
-					try!(msg.reply_default())
-				}
-			}
-		}
-		Err("authentication with public key failed")
-	}
+                _ => {
+                    try!(msg.reply_default())
+                }
+            }
+        }
+        Err("authentication with public key failed")
+    }
 
-	pub fn handle_key_exchange(&self) -> Result<(),&'static str> {
-		assert!(!self._session.is_null());
+    pub fn handle_key_exchange(&self) -> Result<(),&'static str> {
+        assert!(!self._session.is_null());
 
-		let session: *mut libssh_server::ssh_session_struct = unsafe {
-			mem::transmute(self._session)
-		};
-		let res = unsafe { libssh_server::ssh_handle_key_exchange(session) };
-		match res {
-			SSH_OK => Ok(()),
-			_              => Err("ssh_handle_key_exchange() failed")
-		}
-	}
+        let session: *mut libssh_server::ssh_session_struct = unsafe {
+            mem::transmute(self._session)
+        };
+        let res = unsafe { libssh_server::ssh_handle_key_exchange(session) };
+        match res {
+            SSH_OK => Ok(()),
+            _      => Err("ssh_handle_key_exchange() failed")
+        }
+    }
 
-	pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
-		assert!(!self._session.is_null());
-		let res = unsafe { ssh_set_log_level(level) };
-		match res {
-			SSH_OK => Ok(()),
-			_              => Err("ssh_set_log_level() failed")
-		}
-	}
+    pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
+        assert!(!self._session.is_null());
+        let res = unsafe { ssh_set_log_level(level) };
+        match res {
+            SSH_OK => Ok(()),
+            _      => Err("ssh_set_log_level() failed")
+        }
+    }
 }
 
 impl Drop for SSHSession {
-	fn drop(&mut self) {
-		unsafe {
-			ssh_disconnect(self._session);
-			ssh_free(self._session);
-		}
-	}
+    fn drop(&mut self) {
+        unsafe {
+            ssh_disconnect(self._session);
+            ssh_free(self._session);
+        }
+    }
 }

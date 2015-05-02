@@ -2,6 +2,7 @@
 
 extern crate libc;
 
+use constants;
 use libssh::*;
 use libssh_server;
 use ssh_message::SSHMessage;
@@ -15,24 +16,24 @@ use std::ffi::CString;
 type AuthCb = extern fn(*const i8, *mut i8, u64, i32, i32, *mut libc::types::common::c95::c_void) -> i32;
 
 pub struct SSHKey {
-	_key: *mut ssh_key_struct
+    _key: *mut ssh_key_struct
 }
 
 impl Drop for SSHKey {
-	fn drop(&mut self) {
-		unsafe {
-			ssh_key_free(self._key)
-		}
-	}
+    fn drop(&mut self) {
+        unsafe {
+            ssh_key_free(self._key)
+        }
+    }
 }
 
 impl SSHKey {
-	pub fn raw(&self) -> *mut ssh_key_struct {
-		assert!(!self._key.is_null());
-		self._key
-	}
+    pub fn raw(&self) -> *mut ssh_key_struct {
+        assert!(!self._key.is_null());
+        self._key
+    }
 
-	pub fn private_key_from_base64(b64_key: &str) -> Result<SSHKey, ()> {
+    pub fn private_key_from_base64(b64_key: &str) -> Result<SSHKey, ()> {
         let b64_cstr = CString::new(b64_key).unwrap();
         let mut key = 0 as *mut ssh_key_struct;
 
@@ -53,8 +54,8 @@ impl SSHKey {
         }
     }
 
-	pub fn public_key_from_base64(b64_key: &str, typ: u32) -> Result<SSHKey, ()> {
-		let mut key = 0 as *mut ssh_key_struct;
+    pub fn public_key_from_base64(b64_key: &str, typ: u32) -> Result<SSHKey, ()> {
+        let mut key = 0 as *mut ssh_key_struct;
         let b64_cstr = CString::new(b64_key).unwrap();
         let res = unsafe {
             ssh_pki_import_pubkey_base64(b64_cstr.as_ptr(), typ, &mut key)
@@ -69,95 +70,95 @@ impl SSHKey {
         }
     }
 
-	/* used by client to get server's public key */
-	pub fn from_session(session: &SSHSession)
-			-> Result<SSHKey, &'static str>
-	{
-		let session_ptr = session.raw();
-		assert!(!session_ptr.is_null());
+    /* used by client to get server's public key */
+    pub fn from_session(session: &SSHSession)
+            -> Result<SSHKey, &'static str>
+    {
+        let session_ptr = session.raw();
+        assert!(!session_ptr.is_null());
 
-		let mut key = 0 as *mut ssh_key_struct;
+        let mut key = 0 as *mut ssh_key_struct;
 
-		let res = unsafe {
-			ssh_get_publickey(session_ptr, &mut key)
-		};
-		
-		match res {
-			SSH_OK => {
-				assert!(!key.is_null());
-				Ok(SSHKey { _key: key })
-			},
-			_ => Err("ssh_get_publickey() failed")
-		}
-	}
+        let res = unsafe {
+            ssh_get_publickey(session_ptr, &mut key)
+        };
+        
+        match res {
+            SSH_OK => {
+                assert!(!key.is_null());
+                Ok(SSHKey { _key: key })
+            },
+            _ => Err("ssh_get_publickey() failed")
+        }
+    }
 
-	/* used by server to get client's public key */
-	pub fn from_message<'a>(message: &SSHMessage)
-		-> Result<SSHKey, &'a str>
-	{
-		let msg = message.raw();
-		assert!(!msg.is_null());
+    /* used by server to get client's public key */
+    pub fn from_message<'a>(message: &SSHMessage)
+        -> Result<SSHKey, &'a str>
+    {
+        let msg = message.raw();
+        assert!(!msg.is_null());
 
-		let type_ = message.get_type();
-		let subtype = message.get_subtype();
+        let type_ = message.get_type();
+        let subtype = message.get_subtype();
 
-		let is_correct_msg_type =
-		    type_ == libssh_server::ssh_requests_e::SSH_REQUEST_AUTH
-		     && subtype == libssh_server::SSH_AUTH_METHOD_PUBLICKEY;
+        let is_correct_msg_type =
+            type_ == libssh_server::ssh_requests_e::SSH_REQUEST_AUTH
+             && subtype == constants::SSH_AUTH_METHOD_PUBLICKEY;
 
-		if !is_correct_msg_type {
-		   	//let msg:String = format!("auth_public_key() expected corresponding message, but got {}:{}",
-		   	//		type_, subtype);
-		   	let msg = "auth_public_key() expected corresponding message";
-		   	return Err(msg)
-		}
+        if !is_correct_msg_type {
+               //let msg:String = format!("auth_public_key() expected corresponding message, but got {}:{}",
+               //        type_, subtype);
+               let msg = "auth_public_key() expected corresponding message";
+               return Err(msg)
+        }
 
-		let pubkey = unsafe { libssh_server::ssh_message_auth_pubkey(msg) };
+        let pubkey = unsafe { libssh_server::ssh_message_auth_pubkey(msg) };
 
-		if pubkey.is_null() {
-			Err("ssh_message_auth_pubkey() returned NULL")
-		}
-		else {
-			Ok(SSHKey { _key: unsafe {
-				mem::transmute(pubkey) }
-			})
-		}
-	}
+        if pubkey.is_null() {
+            Err("ssh_message_auth_pubkey() returned NULL")
+        }
+        else {
+            Ok(SSHKey { _key: unsafe {
+                mem::transmute(pubkey) }
+            })
+        }
+    }
 
-	pub fn is_private(&self) -> bool {
-		assert!(!self._key.is_null());
-		unsafe { ssh_key_is_private(self._key) != 0 }
-	}
+    pub fn is_private(&self) -> bool {
+        assert!(!self._key.is_null());
+        unsafe { ssh_key_is_private(self._key) != 0 }
+    }
 
-	pub fn is_public(&self) -> bool {
-		assert!(!self._key.is_null());
-		unsafe { ssh_key_is_public(self._key) != 0 }
-	}
+    pub fn is_public(&self) -> bool {
+        assert!(!self._key.is_null());
+        unsafe { ssh_key_is_public(self._key) != 0 }
+    }
 
-	/*pub fn get_publickey_hash(&self) -> SSHHash {
-	}*/
+    /*pub fn get_publickey_hash(&self) -> SSHHash {
+    }*/
 }
 
 impl PartialEq for SSHKey {
-	fn eq(&self, other: &SSHKey) -> bool {
-		if self.is_private() ^ self.is_private() {
-			// one is a private key, the other not
-			return false;
-		}
+    fn eq(&self, other: &SSHKey) -> bool {
+        if self.is_private() ^ self.is_private() {
+            // one is a private key, the other not
+            return false;
+        }
 
-		let what = if self.is_private() {
-			ssh_keycmp_e::SSH_KEY_CMP_PRIVATE
-		} else {
-			ssh_keycmp_e::SSH_KEY_CMP_PUBLIC
-		} as u32;
+        let what = if self.is_private() {
+            ssh_keycmp_e::SSH_KEY_CMP_PRIVATE
+        } else {
+            ssh_keycmp_e::SSH_KEY_CMP_PUBLIC
+        } as u32;
 
-		unsafe { ssh_key_cmp(self._key, other._key, what) == 0 }
-	}
+        unsafe { ssh_key_cmp(self._key, other._key, what) == 0 }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	const INVALID_PRIVATE_KEY: &'static str = "-----BEGIN RSA PRIVATE KEY-----
+    const INVALID_PRIVATE_KEY: &'static str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpgIBAAKCAQEAtVRiaUPBXiqVNw4By07q+nqDAfIKzuo2Nrdm2TbNMaZzcbY4
 dYOwr4fj4FcwRx3PkDDTZsDw83GRUqoyk/wbz+TsgRe40S2AlhtJvH+77vcAIoSb
 UMCjdBcQxdu+b6nZKJ9kMh+nus6y9/syx3prci6PPcRhyYRjV8UfjgXVYGyXMWgs
@@ -186,7 +187,7 @@ ikwcwZIsiVeoAm6m5J1wKxAdpkz/JDR+x20SJrnFeITAMGaUsqf6JP4SqyazD+0C
 -----END RSA PRIVATE KEY-----
 ";
 
-	const PRIVATE_KEY1: &'static str = "-----BEGIN RSA PRIVATE KEY-----
+    const PRIVATE_KEY1: &'static str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpgIBAAKCAQEAtVRiaUPBXiqVNw4By07q+nqDAfIKzuo2Nrdm2TbNMaZzcbY4
 dYOwr4fj4FcwRx3PkDDTZsDw83GRUqoyk/wbz+TsgRe40S2AlhtJvH+77vcAIoSb
 UMCjdBcQxdu+b6nZKJ9kMh+nus6y9/syx3prci6PPcRhyYRjV8UfjgXVYGyXMWgs
@@ -215,7 +216,7 @@ ikwcwZIsiVeoAm6m5J1wKxAdpkz/JDR+x20SJrnFeITAMGaUsqf6JP4SqyazD+0C
 -----END RSA PRIVATE KEY-----
 ";
 
-	const PRIVATE_KEY2: &'static str = "-----BEGIN RSA PRIVATE KEY-----
+    const PRIVATE_KEY2: &'static str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAp0cpxxgI0hmdkXeWXOVlEsiPkPmR5Lpv+Xw64TAZPOy+wt3P
 m3DcfDHzNpoJQCJoAE0RMI+YtksCsQy7d1V+XHGzS9Ipflvcvj8eI0TeMHeed26C
 E6FNRJeYbptjf9muoLVKzQsVHvmrsuEXZLAZfamoCtWfMwMBLmbW63l0HhBCSZH5
@@ -244,100 +245,100 @@ Tx3SzpHbXS2FWmS1krpoNfRCgvTostouGlqjmZJhxPNgV4DNMS1D
 -----END RSA PRIVATE KEY-----
 ";
 
-	const INVALID_PUBLIC_KEY: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC1VGJpQ8FeKpU3DgHLTur6eoMB8grO6jY2t2bZNs0xpnNxtjh1g7Cvh+PgVzBHHc+QMNNmwPDzcZFSqjKT/BvP5OyBF7jRLYCWG0m8f7vu9wAihJtQwKN0FxDF275vqdkon2QyH6e6zrL3+zLHemtyLo89xGHJhGNXxR+OBdVgbJcxaCysaznL9jbby6CLAR+BQX4MiebOWdUNsOrPH6cRjT1pU9ydyRMf14F13A03tgINxjz8CDz4BJu42js7vOvaLn+fzXVROKjoQPYaI/SuOasdfjksd hdafhdksjfkdsafsdnEDe33A77pYIXanH/oB/EzZI0nDLWV7ByoFXh";
-	const PUBLIC_KEY1: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC1VGJpQ8FeKpU3DgHLTur6eoMB8grO6jY2t2bZNs0xpnNxtjh1g7Cvh+PgVzBHHc+QMNNmwPDzcZFSqjKT/BvP5OyBF7jRLYCWG0m8f7vu9wAihJtQwKN0FxDF275vqdkon2QyH6e6zrL3+zLHemtyLo89xGHJhGNXxR+OBdVgbJcxaCysaznL9jbby6CLAR+BQX4MiebOWdUNsOrPH6cRjT1pU9ydyRMf14F13A03tgINxjz8CDz4BJu42js7vOvaLn+fzXVROKjoQPYaI/SuOA25bttg6CIawei5agUNWlKf3iynEDe33A77pYIXanH/oB/EzZI0nDLWV7ByoFXh";
-	const PUBLIC_KEY2: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQCnRynHGAjSGZ2Rd5Zc5WUSyI+Q+ZHkum/5fDrhMBk87L7C3c+bcNx8MfM2mglAImgATREwj5i2SwKxDLt3VX5ccbNL0il+W9y+Px4jRN4wd553boIToU1El5hum2N/2a6gtUrNCxUe+auy4RdksBl9qagK1Z8zAwEuZtbreXQeEEJJkfnfmg8KDpukwwFLUyRgF/fhNlW6NEUSpXB2Pn4UEb44jZJUQt+iHXzluJYVYke3esvM+P56ILi0sfPDWf1aWxGq2fKXd4XUGpusGISP2RpUEjMYPR3suwAhKlALzLydM5QIcBFHFKIctkJctbBzYOOyz5hhQSfu8JfpUJM9";
+    const INVALID_PUBLIC_KEY: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC1VGJpQ8FeKpU3DgHLTur6eoMB8grO6jY2t2bZNs0xpnNxtjh1g7Cvh+PgVzBHHc+QMNNmwPDzcZFSqjKT/BvP5OyBF7jRLYCWG0m8f7vu9wAihJtQwKN0FxDF275vqdkon2QyH6e6zrL3+zLHemtyLo89xGHJhGNXxR+OBdVgbJcxaCysaznL9jbby6CLAR+BQX4MiebOWdUNsOrPH6cRjT1pU9ydyRMf14F13A03tgINxjz8CDz4BJu42js7vOvaLn+fzXVROKjoQPYaI/SuOasdfjksd hdafhdksjfkdsafsdnEDe33A77pYIXanH/oB/EzZI0nDLWV7ByoFXh";
+    const PUBLIC_KEY1: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC1VGJpQ8FeKpU3DgHLTur6eoMB8grO6jY2t2bZNs0xpnNxtjh1g7Cvh+PgVzBHHc+QMNNmwPDzcZFSqjKT/BvP5OyBF7jRLYCWG0m8f7vu9wAihJtQwKN0FxDF275vqdkon2QyH6e6zrL3+zLHemtyLo89xGHJhGNXxR+OBdVgbJcxaCysaznL9jbby6CLAR+BQX4MiebOWdUNsOrPH6cRjT1pU9ydyRMf14F13A03tgINxjz8CDz4BJu42js7vOvaLn+fzXVROKjoQPYaI/SuOA25bttg6CIawei5agUNWlKf3iynEDe33A77pYIXanH/oB/EzZI0nDLWV7ByoFXh";
+    const PUBLIC_KEY2: &'static str = "AAAAB3NzaC1yc2EAAAADAQABAAABAQCnRynHGAjSGZ2Rd5Zc5WUSyI+Q+ZHkum/5fDrhMBk87L7C3c+bcNx8MfM2mglAImgATREwj5i2SwKxDLt3VX5ccbNL0il+W9y+Px4jRN4wd553boIToU1El5hum2N/2a6gtUrNCxUe+auy4RdksBl9qagK1Z8zAwEuZtbreXQeEEJJkfnfmg8KDpukwwFLUyRgF/fhNlW6NEUSpXB2Pn4UEb44jZJUQt+iHXzluJYVYke3esvM+P56ILi0sfPDWf1aWxGq2fKXd4XUGpusGISP2RpUEjMYPR3suwAhKlALzLydM5QIcBFHFKIctkJctbBzYOOyz5hhQSfu8JfpUJM9";
 
-	#[test]
-	#[should_fail]
-	fn invalid_private_key_fails() {
-		::ssh_initialize();
+    #[test]
+    #[should_fail]
+    fn invalid_private_key_fails() {
+        ::ssh_initialize();
 
-		super::SSHKey::private_key_from_base64(INVALID_PRIVATE_KEY.deref()).unwrap();
-	}
+        super::SSHKey::private_key_from_base64(INVALID_PRIVATE_KEY.deref()).unwrap();
+    }
 
-	#[test]
-	#[should_fail]
-	fn invalid_public_key_fails() {
-		::ssh_initialize();
+    #[test]
+    #[should_fail]
+    fn invalid_public_key_fails() {
+        ::ssh_initialize();
 
-		let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
-		super::SSHKey::public_key_from_base64(INVALID_PUBLIC_KEY.deref(), typ).unwrap();
-	}
+        let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
+        super::SSHKey::public_key_from_base64(INVALID_PUBLIC_KEY.deref(), typ).unwrap();
+    }
 
-	#[test]
-	fn same_private_key_is_equal() {
-		::ssh_initialize();
+    #[test]
+    fn same_private_key_is_equal() {
+        ::ssh_initialize();
 
-		let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
-		assert!(key1 == key1);
-	}
+        let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
+        assert!(key1 == key1);
+    }
 
-	#[test]
-	fn same_public_key_is_equal() {
-		::ssh_initialize();
+    #[test]
+    fn same_public_key_is_equal() {
+        ::ssh_initialize();
 
-		let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
-		let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
-		assert!(key1 == key1);
-	}
+        let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
+        let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
+        assert!(key1 == key1);
+    }
 
-	#[test]
-	#[should_fail]
-	fn different_private_keys_are_not_equal() {
-		::ssh_initialize();
+    #[test]
+    #[should_fail]
+    fn different_private_keys_are_not_equal() {
+        ::ssh_initialize();
 
-		let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
-		let key2 = super::SSHKey::private_key_from_base64(PRIVATE_KEY2.deref()).unwrap();
+        let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
+        let key2 = super::SSHKey::private_key_from_base64(PRIVATE_KEY2.deref()).unwrap();
 
-		assert!(key1 == key2);
-	}
+        assert!(key1 == key2);
+    }
 
-	#[test]
-	#[should_fail]
-	fn different_public_keys_are_not_equal() {
-		::ssh_initialize();
+    #[test]
+    #[should_fail]
+    fn different_public_keys_are_not_equal() {
+        ::ssh_initialize();
 
-		let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
-		let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
-		let key2 = super::SSHKey::public_key_from_base64(PUBLIC_KEY2.deref(), typ).unwrap();
+        let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
+        let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
+        let key2 = super::SSHKey::public_key_from_base64(PUBLIC_KEY2.deref(), typ).unwrap();
 
-		assert!(key1 == key2);
-	}
+        assert!(key1 == key2);
+    }
 
 
-	#[test]
-	fn public_key_is_public_key() {
-		::ssh_initialize();
+    #[test]
+    fn public_key_is_public_key() {
+        ::ssh_initialize();
 
-		let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
-		let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
-		assert!(key1.is_public());
-	}
+        let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
+        let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
+        assert!(key1.is_public());
+    }
 
-	#[test]
-	#[should_fail]
-	fn public_key_is_not_private_key() {
-		::ssh_initialize();
+    #[test]
+    #[should_fail]
+    fn public_key_is_not_private_key() {
+        ::ssh_initialize();
 
-		let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
-		let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
-		assert!(key1.is_private());
-	}
+        let typ = ::ssh_keytypes_e::SSH_KEYTYPE_RSA as u32;
+        let key1 = super::SSHKey::public_key_from_base64(PUBLIC_KEY1.deref(), typ).unwrap();
+        assert!(key1.is_private());
+    }
 
-	#[test]
-	fn private_key_is_private_key() {
-		::ssh_initialize();
+    #[test]
+    fn private_key_is_private_key() {
+        ::ssh_initialize();
 
-		let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
-		assert!(key1.is_private());
-	}
+        let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
+        assert!(key1.is_private());
+    }
 
-	#[test]
-	fn private_key_has_also_public_key() {
-		::ssh_initialize();
+    #[test]
+    fn private_key_has_also_public_key() {
+        ::ssh_initialize();
 
-		let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
-		assert!(key1.is_public());
-	}
+        let key1 = super::SSHKey::private_key_from_base64(PRIVATE_KEY1.deref()).unwrap();
+        assert!(key1.is_public());
+    }
 }
