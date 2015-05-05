@@ -3,6 +3,7 @@
 
 use std::sync::{Once, ONCE_INIT};
 
+#[macro_use] mod util;
 pub mod constants;
 pub mod libssh_server;
 pub mod libssh;
@@ -14,6 +15,7 @@ pub mod ssh_message;
 static SSH_INIT: Once = ONCE_INIT;
 
 pub fn ssh_init() {
+    //check_ssh_ok!(1);
     SSH_INIT.call_once(|| {
         unsafe { libssh::ssh_init() };
     })

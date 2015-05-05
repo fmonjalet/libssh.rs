@@ -19,7 +19,7 @@ pub struct SSHSession {
 }
 
 impl SSHSession {
-    pub fn new(host: Option<&str>) -> Result<SSHSession, ()> {
+    pub fn new(host: Option<&str>) -> Result<SSHSession, &'static str> {
         let ptr = unsafe { ssh_new() };
         assert!(!ptr.is_null());
 
@@ -31,48 +31,31 @@ impl SSHSession {
         Ok(session)
     }
 
-    pub fn set_host(&self, host: &str) -> Result<(),()> {
+    pub fn set_host(&self, host: &str) -> Result<(), &'static str> {
         assert!(!self._session.is_null());
 
         let opt = ssh_options_e::SSH_OPTIONS_HOST as u32;
         let host_cstr = CString::new(host).unwrap();
-        let res = unsafe {
-            ssh_options_set(self._session, opt,
-                            host_cstr.as_ptr() as *const c_void)
-        };
 
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err(())
-        }
+        check_ssh_ok!(ssh_options_set(self._session, opt,
+                            host_cstr.as_ptr() as *const c_void),
+                      self._session)
     }
 
     pub fn connect<F>(&self, verify_public_key: F)
-            -> Result<(), String>
+            -> Result<(), &'static str>
             where F: Fn(&SSHKey) -> bool
     {
         assert!(!self._session.is_null());
 
-        let res = unsafe { ssh_connect(self._session) };
-        if res != SSH_OK {
-            let ptr = self._session as *mut c_void;
-
-            let err_msg = unsafe {
-                let err = ssh_get_error(ptr);
-                assert!(!err.is_null());
-
-                from_utf8(CStr::from_ptr(err).to_bytes()).ok().unwrap()
-                                                              .to_string()
-            };
-            return Err(err_msg);
-        }
+        try!(check_ssh_ok!(ssh_connect(self._session), self._session));
 
         let remote_public_key = try!(
-            SSHKey::from_session(self).map_err(|err| err.to_string())
+            SSHKey::from_session(self).map_err(|err| err)
         );
         if !verify_public_key(&remote_public_key) {
             self.disconnect();
-            return Err("authentication failed".to_string());
+            return Err("authentication failed");
         }
         else {
             Ok(())
@@ -128,16 +111,12 @@ impl SSHSession {
     pub fn set_port(&self, port: &str) -> Result<(),&'static str> {
         assert!(!self._session.is_null());
 
-        let opt = ssh_options_e::SSH_OPTIONS_PORT as u32;
+        let opt = ssh_options_e::SSH_OPTIONS_PORT_STR as u32;
         let p = CString::new(port).unwrap();
-        let res = unsafe {
-            ssh_options_set(self._session, opt, p.as_ptr() as *const c_void)
-        };
-
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_options_set() failed for setting port")
-        }
+        check_ssh_ok!(
+            ssh_options_set(self._session, opt, p.as_ptr() as *const c_void),
+            self._session
+        )
     }
 
     pub fn auth_with_public_key<'a, F>(&self, verify_public_key: F)
@@ -177,20 +156,16 @@ impl SSHSession {
         let session: *mut libssh_server::ssh_session_struct = unsafe {
             mem::transmute(self._session)
         };
-        let res = unsafe { libssh_server::ssh_handle_key_exchange(session) };
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_handle_key_exchange() failed")
-        }
+        check_ssh_ok!(
+            libssh_server::ssh_handle_key_exchange(session),
+            self._session
+        )
     }
 
     pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
         assert!(!self._session.is_null());
-        let res = unsafe { ssh_set_log_level(level) };
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_set_log_level() failed")
-        }
+        // FIXME: Should not be here?
+        check_ssh_ok!(ssh_set_log_level(level), self._session)
     }
 }
 

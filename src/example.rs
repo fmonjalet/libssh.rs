@@ -59,7 +59,7 @@ fn server(barrier: &Arc<Barrier>) {
     let session = libssh::ssh_session::SSHSession::new(None).unwrap();
 
     let bind = libssh::ssh_bind::SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
-    bind.set_log_level(libssh::libssh::SSH_LOG_FUNCTIONS).unwrap();
+    bind.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
 
     bind.listen().unwrap();
     println!("server: listening");

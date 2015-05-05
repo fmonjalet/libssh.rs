@@ -40,15 +40,22 @@ fn server() {
     println!("server: handle_key_exchange() done");
 
     loop {
-        let msg = ssh_message::SSHMessage::from_session(&session).unwrap();
-        if unhandled_preauth_req(&msg) {
-            ans_pass_auth(&msg);
-        } else {
-            let user = msg.get_auth_user().unwrap();
-            let pass = msg.get_auth_password().unwrap();
-            println!("Authenticated user: {}", user);
-            println!("Password:           {}", pass);
-            break;
+        match ssh_message::SSHMessage::from_session(&session) {
+            Ok(msg) => {
+                if unhandled_preauth_req(&msg) {
+                    ans_pass_auth(&msg);
+                } else {
+                    let user = msg.get_auth_user().unwrap();
+                    let pass = msg.get_auth_password().unwrap();
+                    println!("Authenticated user: {}", user);
+                    println!("Password:           {}", pass);
+                    ans_pass_auth(&msg);
+                }
+            },
+            Err(err_msg) => {
+                println!("Exiting because of error: {}", err_msg);
+                break;
+            }
         }
     }
 

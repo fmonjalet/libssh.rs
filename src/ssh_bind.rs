@@ -41,14 +41,10 @@ impl SSHBind {
 
         let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDADDR as u32;
         let h = CString::new(host).unwrap();
-        let res = unsafe {
-            ssh_bind_options_set(self._bind, opt, h.as_ptr() as *const c_void)
-        };
-
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_bind_options_set() failed for setting host")
-        }
+        check_ssh_ok!(
+            ssh_bind_options_set(self._bind, opt, h.as_ptr() as *const c_void),
+            self._bind
+        )
     }
 
     pub fn set_port(&self, port: &str) -> Result<(),&'static str> {
@@ -56,14 +52,10 @@ impl SSHBind {
 
         let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDPORT_STR as u32;
         let p = CString::new(port).unwrap();
-        let res = unsafe {
-            ssh_bind_options_set(self._bind, opt, p.as_ptr() as *const c_void)
-        };
-
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_bind_options_set() failed for setting port")
-        }
+        check_ssh_ok!(
+            ssh_bind_options_set(self._bind, opt, p.as_ptr() as *const c_void),
+            self._bind
+        )
     }
 
     pub fn set_private_key_file(&self, key_file: &str) -> Result<(),&'static str> {
@@ -71,54 +63,43 @@ impl SSHBind {
 
         let opt_type = ssh_bind_options_e::SSH_BIND_OPTIONS_HOSTKEY as u32;
         let typ = CString::new("ssh-rsa").unwrap();
-        let res = unsafe {
+        try!(check_ssh_ok!(
             ssh_bind_options_set(self._bind, opt_type,
-                                 typ.as_ptr() as *const c_void)
-        };
-        if res != SSH_OK {
-            return Err("ssh_bind_options_set() failed for private key (HOSTKEY)");
-        }
+                                 typ.as_ptr() as *const c_void),
+            self._bind
+        ));
 
         let opt_key = ssh_bind_options_e::SSH_BIND_OPTIONS_RSAKEY as u32;
         let pkey_file = CString::new(key_file).unwrap();
-        let res = unsafe {
+        check_ssh_ok!(
             ssh_bind_options_set(self._bind, opt_key,
-                                 pkey_file.as_ptr() as *const c_void)
-        };
-
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_bind_options_set() failed for private key (RSAKEY)")
-        }
+                                 pkey_file.as_ptr() as *const c_void),
+            self._bind
+        )
     }
+
+    /*
+    pub fn wait_for_session(&self) -> Result<SSHSession, String> {
+    }
+    */
 
     pub fn listen(&self) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
 
-        let res = unsafe { ssh_bind_listen(self._bind) };
-        debug!("listen={}", res);
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_bind_listen() failed")
-        }
+        check_ssh_ok!(ssh_bind_listen(self._bind), self._bind)
     }
 
     pub fn accept(&self, session: &SSHSession) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
-
-        let res = unsafe { ssh_bind_accept(self._bind, mem::transmute(session.raw())) };
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_bind_accept() failed")
-        }
+        check_ssh_ok!(
+            ssh_bind_accept(self._bind, mem::transmute(session.raw())),
+            self._bind
+        )
     }
 
     pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
-        let res = unsafe { ssh_set_log_level(level) };
-        match res {
-            SSH_OK => Ok(()),
-            _      => Err("ssh_set_log_level() failed")
-        }
+        // FIXME: Should not be here?
+        check_ssh_ok!(ssh_set_log_level(level), self._bind)
     }
 }
