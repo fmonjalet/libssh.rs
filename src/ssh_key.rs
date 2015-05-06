@@ -1,14 +1,13 @@
 extern crate libc;
 
-use native::libssh::*;
-use native::server::*;
-use ssh_session::{SSHSession,SSHMessage};
-use constants::{SSHRequest,SSHAuthMethod};
-
-use self::libc::types::common::c95::c_void;
 use std::ptr;
 use std::mem;
 use std::ffi::CString;
+
+use constants::{SSHRequest,SSHAuthMethod};
+use native::libssh::*;
+use native::server::*;
+use ssh_session::{SSHSession,SSHMessage};
 
 type AuthCb = extern fn(*const i8, *mut i8, u64, i32, i32,
                         *mut libc::c_void) -> i32;
@@ -37,7 +36,7 @@ impl SSHKey {
 
         let pwd = ptr::null();
         let auth_fn: Option<AuthCb> = Option::None;
-        let auth_data = 0 as *mut c_void;
+        let auth_data = 0 as *mut libc::c_void;
 
         let func = ssh_pki_import_privkey_base64;
         let res = unsafe {
@@ -111,16 +110,8 @@ impl SSHKey {
                return Err(msg)
         }
 
-        let pubkey = unsafe { ssh_message_auth_pubkey(msg) };
-
-        if pubkey.is_null() {
-            Err("ssh_message_auth_pubkey() returned NULL")
-        }
-        else {
-            Ok(SSHKey { _key: unsafe {
-                mem::transmute(pubkey) }
-            })
-        }
+        let pubkey = try!(check_ssh_ptr!(ssh_message_auth_pubkey(msg)));
+        Ok(SSHKey { _key: unsafe { mem::transmute(pubkey) } })
     }
 
     pub fn is_private(&self) -> bool {

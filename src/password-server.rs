@@ -40,7 +40,7 @@ fn handle_session(session: &SSHSession) {
                 }
             },
             Err(err_msg) => {
-                println!("Exiting because of error: {}", err_msg);
+                println!("End of session: {}", err_msg);
                 break;
             }
         }

@@ -41,20 +41,19 @@ trait SSHErrorMessage {
 macro_rules! ssh_err_msg {
     ($ptr: expr, $cause: expr) => {
         match $crate::util::ssh_get_error($ptr as *mut libc::c_void) {
-            Ok(err_str) => Err(err_str),
-            Err(_) => Err(concat!(stringify!($cause),
-                              " failed (could not get libssh error)"))
+            Ok(err_str) => err_str,
+            Err(_) => concat!(stringify!($cause),
+                              " failed (could not get libssh error)")
         }
     }
 
 }
 
-
 macro_rules! _check_ssh_ok {
     ($e: expr, $error: expr) => {
         match unsafe { $e } {
             libssh::SSH_OK => Ok(()),
-            _      => {$error}
+            _      => {Err($error)}
         }
     }
 }
@@ -71,3 +70,27 @@ macro_rules! check_ssh_ok {
     }
 }
 
+macro_rules! _check_ssh_ptr {
+    ($e: expr, $error: expr) => {
+        {
+            let res = unsafe { $e };
+            if res.is_null(){
+                Err($error)
+            } else {
+                Ok(res)
+            }
+        }
+    }
+}
+
+/// Checks that the return value of a given function is not null.
+/// unsafe expr(, *mut ptr) -> Result<(), &str>
+#[macro_export]
+macro_rules! check_ssh_ptr {
+    ($e: expr) => {
+        _check_ssh_ptr!($e, concat!(stringify!($e), " failed"))
+    };
+    ($e: expr, $ptr: expr) => {
+        _check_ssh_ptr!($e, ssh_err_msg!($ptr, $e))
+    }
+}

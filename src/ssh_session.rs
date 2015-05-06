@@ -1,19 +1,17 @@
 extern crate libc;
 extern crate num;
 
-use ssh_key::SSHKey;
+use std::ffi::CString;
+use num::FromPrimitive;
+use std::mem;
+use std::ptr;
+
 use constants::{SSHAuthResult,SSHAuthMethod,SSHOption,SSHRequest};
 use native::libssh;
 use native::server;
+use ssh_key::SSHKey;
+use util;
 
-use std::mem;
-use std::ptr;
-use std::str::from_utf8;
-use std::ffi::{CString, CStr};
-use num::FromPrimitive;
-
-
-// Actual code:
 
 pub struct SSHSession {
     _session: *mut libssh::ssh_session_struct
@@ -162,12 +160,9 @@ impl SSHSession {
     pub fn get_message(&self) -> Result<SSHMessage, &'static str> {
         assert!(!self._session.is_null());
 
-        let msg = unsafe { libssh::ssh_message_get(self._session) };
-        if msg.is_null() {
-            Err("ssh_message_get() returned NULL")
-        } else {
-            Ok(SSHMessage { _msg: msg })
-        }
+        let msg = try!(check_ssh_ptr!(libssh::ssh_message_get(self._session),
+                                      self._session));
+        Ok(SSHMessage { _msg: msg })
     }
 
     pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
@@ -208,13 +203,8 @@ impl SSHMessage {
         };
         assert!(!session.is_null());
 
-        let msg = unsafe { libssh::ssh_message_get(session) };
-        if msg.is_null() {
-            Err("ssh_message_get() returned NULL")
-        }
-        else {
-            Ok(SSHMessage { _msg: msg })
-        }
+        let msg = try!(check_ssh_ptr!(libssh::ssh_message_get(session)));
+        Ok(SSHMessage { _msg: msg })
     }
 
     pub fn raw(self: &Self) -> *mut libssh::ssh_message_struct {
@@ -262,28 +252,18 @@ impl SSHMessage {
     }
 
     pub fn get_auth_user(&self) -> Result<String, &'static str> {
-        let c_user = unsafe { server::ssh_message_auth_user(self._msg) };
-        if c_user.is_null() {
-            Err("ssh_message_auth_user() failed")
-        } else {
-            let user = unsafe {
-                from_utf8(CStr::from_ptr(c_user).to_bytes()).ok().unwrap()
-                                                                 .to_string()
-            };
-            Ok(user)
-        }
+        let c_user = try!(check_ssh_ptr!(
+                server::ssh_message_auth_user(self._msg)
+        ));
+        // FIXME: free?
+        Ok(try!(util::from_native_str(c_user)).to_string())
     }
 
     pub fn get_auth_password(&self) -> Result<String, &'static str> {
-        let c_pass = unsafe { server::ssh_message_auth_password(self._msg) };
-        if c_pass.is_null() {
-            Err("ssh_message_auth_password() failed")
-        } else {
-            let pass = unsafe {
-                from_utf8(CStr::from_ptr(c_pass).to_bytes()).ok().unwrap()
-                                                                 .to_string()
-            };
-            Ok(pass)
-        }
+        let c_pass = try!(check_ssh_ptr!(
+                server::ssh_message_auth_password(self._msg)
+        ));
+        // FIXME: free?
+        Ok(try!(util::from_native_str(c_pass)).to_string())
     }
 }
