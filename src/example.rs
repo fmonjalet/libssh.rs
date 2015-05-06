@@ -62,7 +62,7 @@ fn client(barrier: &Arc<Barrier>) {
 }
 
 fn server(barrier: &Arc<Barrier>) {
-    let bind = SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
+    let bind = SSHBind::new("./keys/id_rsa", Some(HOST), Some("2222")).unwrap();
     bind.set_log_level(SSH_LOG_LEVEL).unwrap();
 
     bind.listen().unwrap();
