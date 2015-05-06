@@ -1,20 +1,14 @@
-#![allow(unused_imports)]
-#![allow(missing_copy_implementations)]
-
 extern crate libc;
 
-use libssh_server::*;
-use ssh_key;
+use native::server::*;
+use native::libssh;
 use ssh_session::SSHSession;
-use ssh_message;
 
 use std::mem;
-use std::ptr;
-use self::libc::types::common::c95::c_void;
 use std::ffi::CString;
 
 pub struct SSHBind {
-    _bind: *mut ssh_bind_struct
+    _bind: *mut ssh_bind_struct,
 }
 
 impl SSHBind {
@@ -42,7 +36,8 @@ impl SSHBind {
         let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDADDR as u32;
         let h = CString::new(host).unwrap();
         check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt, h.as_ptr() as *const c_void),
+            ssh_bind_options_set(self._bind, opt,
+                                 h.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
@@ -53,7 +48,8 @@ impl SSHBind {
         let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDPORT_STR as u32;
         let p = CString::new(port).unwrap();
         check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt, p.as_ptr() as *const c_void),
+            ssh_bind_options_set(self._bind, opt,
+                                 p.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
@@ -65,7 +61,7 @@ impl SSHBind {
         let typ = CString::new("ssh-rsa").unwrap();
         try!(check_ssh_ok!(
             ssh_bind_options_set(self._bind, opt_type,
-                                 typ.as_ptr() as *const c_void),
+                                 typ.as_ptr() as *const libc::c_void),
             self._bind
         ));
 
@@ -73,33 +69,46 @@ impl SSHBind {
         let pkey_file = CString::new(key_file).unwrap();
         check_ssh_ok!(
             ssh_bind_options_set(self._bind, opt_key,
-                                 pkey_file.as_ptr() as *const c_void),
+                                 pkey_file.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
-
-    /*
-    pub fn wait_for_session(&self) -> Result<SSHSession, String> {
-    }
-    */
 
     pub fn listen(&self) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
-
         check_ssh_ok!(ssh_bind_listen(self._bind), self._bind)
     }
 
-    pub fn accept(&self, session: &SSHSession) -> Result<(),&'static str> {
+    pub fn accept(&self) -> Result<SSHSession, &'static str> {
         assert!(!self._bind.is_null());
-        check_ssh_ok!(
+        let session = try!(SSHSession::new(None));
+        try!(check_ssh_ok!(
             ssh_bind_accept(self._bind, mem::transmute(session.raw())),
             self._bind
-        )
+        ));
+        Ok(session)
+    }
+
+    /* Returns a ready session */
+    pub fn get_session(&self) -> Result<SSHSession, &'static str> {
+        assert!(!self._bind.is_null());
+        let session = try!(self.accept());
+        try!(session.handle_key_exchange());
+        Ok(session)
     }
 
     pub fn set_log_level(&self, level: i32) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
         // FIXME: Should not be here?
-        check_ssh_ok!(ssh_set_log_level(level), self._bind)
+        check_ssh_ok!(libssh::ssh_set_log_level(level), self._bind)
+    }
+}
+
+impl Iterator for SSHBind {
+    type Item = SSHSession;
+    fn next(&mut self) -> Option<SSHSession> {
+        let session = self.accept().unwrap();
+        session.handle_key_exchange().unwrap();
+        Some(session)
     }
 }

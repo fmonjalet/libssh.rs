@@ -1,19 +1,17 @@
-#![allow(unused_imports)]
-
 extern crate libc;
 
-use constants;
-use libssh::*;
-use libssh_server;
-use ssh_message::SSHMessage;
-use ssh_session::SSHSession;
+use native::libssh::*;
+use native::server::*;
+use ssh_session::{SSHSession,SSHMessage};
+use constants::{SSHRequest,SSHAuthMethod};
 
 use self::libc::types::common::c95::c_void;
 use std::ptr;
 use std::mem;
 use std::ffi::CString;
 
-type AuthCb = extern fn(*const i8, *mut i8, u64, i32, i32, *mut libc::types::common::c95::c_void) -> i32;
+type AuthCb = extern fn(*const i8, *mut i8, u64, i32, i32,
+                        *mut libc::c_void) -> i32;
 
 pub struct SSHKey {
     _key: *mut ssh_key_struct
@@ -103,8 +101,8 @@ impl SSHKey {
         let subtype = message.get_subtype();
 
         let is_correct_msg_type =
-            type_ == libssh_server::ssh_requests_e::SSH_REQUEST_AUTH
-             && subtype == constants::SSH_AUTH_METHOD_PUBLICKEY;
+            type_ == SSHRequest::Auth
+             && subtype == SSHAuthMethod::PublicKey as i32;
 
         if !is_correct_msg_type {
                //let msg:String = format!("auth_public_key() expected corresponding message, but got {}:{}",
@@ -113,7 +111,7 @@ impl SSHKey {
                return Err(msg)
         }
 
-        let pubkey = unsafe { libssh_server::ssh_message_auth_pubkey(msg) };
+        let pubkey = unsafe { ssh_message_auth_pubkey(msg) };
 
         if pubkey.is_null() {
             Err("ssh_message_auth_pubkey() returned NULL")

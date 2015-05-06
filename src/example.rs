@@ -3,6 +3,11 @@ extern crate libssh;
 use std::sync::{Arc, Barrier};
 use std::thread::spawn;
 
+use libssh::ssh_key::SSHKey;
+use libssh::ssh_session::SSHSession;
+use libssh::ssh_bind::SSHBind;
+use libssh::native::libssh::{SSH_LOG_NOLOG};
+
 const PRIVATE_KEY1: &'static str = "-----BEGIN RSA PRIVATE KEY-----
 MIIEpgIBAAKCAQEAtVRiaUPBXiqVNw4By07q+nqDAfIKzuo2Nrdm2TbNMaZzcbY4
 dYOwr4fj4FcwRx3PkDDTZsDw83GRUqoyk/wbz+TsgRe40S2AlhtJvH+77vcAIoSb
@@ -32,13 +37,14 @@ ikwcwZIsiVeoAm6m5J1wKxAdpkz/JDR+x20SJrnFeITAMGaUsqf6JP4SqyazD+0C
 -----END RSA PRIVATE KEY-----
 ";
 const HOST: &'static str = "127.0.0.1";
+const SSH_LOG_LEVEL: i32 = SSH_LOG_NOLOG;
 
 fn client(barrier: &Arc<Barrier>) {
-    let priv_key = libssh::ssh_key::SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
+    let priv_key = SSHKey::private_key_from_base64(PRIVATE_KEY1).unwrap();
     assert!(priv_key.is_public());
 
-    let session = libssh::ssh_session::SSHSession::new(Some(HOST)).unwrap();
-    session.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
+    let session = SSHSession::new(Some(HOST)).unwrap();
+    session.set_log_level(SSH_LOG_LEVEL).unwrap();
     session.set_port("2222").unwrap();
 
     println!("client: waiting for server...");
@@ -56,16 +62,14 @@ fn client(barrier: &Arc<Barrier>) {
 }
 
 fn server(barrier: &Arc<Barrier>) {
-    let session = libssh::ssh_session::SSHSession::new(None).unwrap();
-
-    let bind = libssh::ssh_bind::SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
-    bind.set_log_level(libssh::libssh::SSH_LOG_NOLOG /*_FUNCTIONS*/).unwrap();
+    let bind = SSHBind::new("/home/florent/.ssh/id_rsa", Some(HOST), Some("2222")).unwrap();
+    bind.set_log_level(SSH_LOG_LEVEL).unwrap();
 
     bind.listen().unwrap();
     println!("server: listening");
     barrier.wait();
 
-    bind.accept(&session).unwrap();
+    let session = bind.accept().unwrap();
     println!("server: accepted");
 
     session.handle_key_exchange().unwrap();

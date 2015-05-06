@@ -3,44 +3,31 @@ extern crate env_logger;
 
 extern crate libssh;
 
-use libssh::{ssh_session,ssh_bind,ssh_message,constants};
-use libssh::libssh_server::ssh_requests_e;
+use libssh::constants::{SSHRequest,SSHAuthMethod};
+use libssh::native::libssh::{SSH_LOG_NOLOG};
+use libssh::ssh_bind::SSHBind;
+use libssh::ssh_session::{SSHSession,SSHMessage};
 
 const HOST: &'static str = "127.0.0.1";
-const SSH_LOG_LEVEL: i32 = libssh::libssh::SSH_LOG_NOLOG;
+const SSH_LOG_LEVEL: i32 = SSH_LOG_NOLOG;
 
-fn unhandled_preauth_req(msg: &ssh_message::SSHMessage) -> bool {
+fn unhandled_preauth_req(msg: &SSHMessage) -> bool {
     let msg_type = msg.get_type();
     let msg_subtype = msg.get_subtype();
     println!("Message before auth: {:?}, {}", msg_type, msg_subtype);
-    msg_type != ssh_requests_e::SSH_REQUEST_AUTH
-        || msg_subtype != constants::SSH_AUTH_METHOD_PASSWORD
+
+    msg_type != SSHRequest::Auth
+        || msg_subtype != SSHAuthMethod::Password as i32
 }
 
-fn ans_pass_auth(msg: &ssh_message::SSHMessage) {
-    msg.auth_set_methods(
-        constants::SSH_AUTH_METHOD_PASSWORD).ok();
+fn ans_pass_auth(msg: &SSHMessage) {
+    msg.auth_set_methods(&[SSHAuthMethod::Password]).ok();
     msg.reply_default().ok();
 }
 
-fn server() {
-    let session = ssh_session::SSHSession::new(None).unwrap();
-    let bind = ssh_bind::SSHBind::new("./keys/id_rsa",
-                                      Some(HOST),
-                                      Some("2222")).unwrap();
-    bind.set_log_level(SSH_LOG_LEVEL).unwrap();
-
-    bind.listen().unwrap();
-    println!("server: listening");
-
-    bind.accept(&session).unwrap();
-    println!("server: accepted");
-
-    session.handle_key_exchange().unwrap();
-    println!("server: handle_key_exchange() done");
-
+fn handle_session(session: &SSHSession) {
     loop {
-        match ssh_message::SSHMessage::from_session(&session) {
+        match session.get_message() {
             Ok(msg) => {
                 if unhandled_preauth_req(&msg) {
                     ans_pass_auth(&msg);
@@ -58,8 +45,25 @@ fn server() {
             }
         }
     }
-
     session.disconnect();
+}
+
+fn server() {
+    let bind = SSHBind::new("./keys/id_rsa",
+                            Some(HOST),
+                            Some("2222")).unwrap();
+    bind.set_log_level(SSH_LOG_LEVEL).unwrap();
+
+    bind.listen().unwrap();
+    println!("server: listening");
+
+    loop {
+        match bind.get_session() {
+            Ok(session) => handle_session(&session),
+            Err(err) => println!("Error while opening session {}", err)
+        }
+    }
+
 }
 
 fn main() {

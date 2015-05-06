@@ -1659,7 +1659,6 @@ extern "C" {
     pub fn string_to_char(str: *mut ssh_string_struct) -> *mut libc::c_char;
 }
 
-
 /*
 struct ssh_agent_struct
 */
