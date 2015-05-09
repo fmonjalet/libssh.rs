@@ -151,10 +151,7 @@ impl SSHSession {
         let session: *mut libssh::ssh_session_struct = unsafe {
             mem::transmute(self._session)
         };
-        check_ssh_ok!(
-            server::ssh_handle_key_exchange(session),
-            self._session
-        )
+        check_ssh_ok!(server::ssh_handle_key_exchange(session))
     }
 
     pub fn get_message(&self) -> Result<SSHMessage, &'static str> {

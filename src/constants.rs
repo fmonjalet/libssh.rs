@@ -28,25 +28,25 @@ enum_from_primitive! {
         AddIdentity                 = 7,
         Knownhosts                  = 8,
         Timeout                     = 9,
-        TimeoutUsec                 = 10,
-        Ssh1                        = 11,
-        Ssh2                        = 12,
+        TimeoutUSec                 = 10,
+        SSH1                        = 11,
+        SSH2                        = 12,
         LogVerbosity                = 13,
         LogVerbosityStr             = 14,
         CiphersCS                   = 15,
         CiphersSC                   = 16,
         CompressionCS               = 17,
         CompressionSC               = 18,
-        Proxycommand                = 19,
-        Bindaddr                    = 20,
-        Stricthostkeycheck          = 21,
+        ProxyCommand                = 19,
+        BindAddr                    = 20,
+        StrictHostKeyCheck          = 21,
         Compression                 = 22,
         CompressionLevel            = 23,
         KeyExchange                 = 24,
         Hostkeys                    = 25,
-        GssapiServerIdentity        = 26,
-        GssapiClientIdentity        = 27,
-        GssapiDelegateCredentials   = 28,
+        GSSAPIServerIdentity        = 26,
+        GSSAPIClientIdentity        = 27,
+        GSSAPIDelegateCredentials   = 28,
     }
 }
 
@@ -72,5 +72,21 @@ enum_from_primitive! {
         Channel     = 3,
         Service     = 4,
         Global      = 5,
+    }
+}
+
+enum_from_primitive! {
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    #[repr(u32)]
+    pub enum SSHBindOption {
+        BindAddr        = 0,
+        BindPort        = 1,
+        BindPortStr     = 2,
+        HostKey         = 3,
+        DSAKey          = 4,
+        RSAKey          = 5,
+        Banner          = 6,
+        LogVerbosity    = 7,
+        LogVerbosityStr = 8,
     }
 }

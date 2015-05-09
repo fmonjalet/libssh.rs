@@ -1,21 +1,22 @@
 extern crate libc;
 
-use native::server::*;
-use native::libssh;
-use ssh_session::SSHSession;
-
 use std::mem;
 use std::ffi::CString;
 
+use constants;
+use native::server;
+use native::libssh;
+use ssh_session::SSHSession;
+
 pub struct SSHBind {
-    _bind: *mut ssh_bind_struct,
+    _bind: *mut server::ssh_bind_struct,
 }
 
 impl SSHBind {
     pub fn new(private_key_file: &str, host: Option<&str>, port: Option<&str>)
         -> Result<SSHBind, &'static str>
     {
-        let ptr = unsafe { ssh_bind_new() };
+        let ptr = unsafe { server::ssh_bind_new() };
         assert!(!ptr.is_null());
 
         let bind = SSHBind { _bind: ptr };
@@ -33,11 +34,11 @@ impl SSHBind {
     pub fn set_host(&self, host: &str) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
 
-        let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDADDR as u32;
+        let opt = constants::SSHBindOption::BindAddr as u32;
         let h = CString::new(host).unwrap();
         check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt,
-                                 h.as_ptr() as *const libc::c_void),
+            server::ssh_bind_options_set(self._bind, opt,
+                                         h.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
@@ -45,11 +46,11 @@ impl SSHBind {
     pub fn set_port(&self, port: &str) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
 
-        let opt = ssh_bind_options_e::SSH_BIND_OPTIONS_BINDPORT_STR as u32;
+        let opt = constants::SSHBindOption::BindPortStr as u32;
         let p = CString::new(port).unwrap();
         check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt,
-                                 p.as_ptr() as *const libc::c_void),
+            server::ssh_bind_options_set(self._bind, opt,
+                                         p.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
@@ -57,33 +58,33 @@ impl SSHBind {
     pub fn set_private_key_file(&self, key_file: &str) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
 
-        let opt_type = ssh_bind_options_e::SSH_BIND_OPTIONS_HOSTKEY as u32;
+        let opt_type = constants::SSHBindOption::HostKey as u32;
         let typ = CString::new("ssh-rsa").unwrap();
         try!(check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt_type,
-                                 typ.as_ptr() as *const libc::c_void),
+            server::ssh_bind_options_set(self._bind, opt_type,
+                                         typ.as_ptr() as *const libc::c_void),
             self._bind
         ));
 
-        let opt_key = ssh_bind_options_e::SSH_BIND_OPTIONS_RSAKEY as u32;
+        let opt_key = constants::SSHBindOption::RSAKey as u32;
         let pkey_file = CString::new(key_file).unwrap();
         check_ssh_ok!(
-            ssh_bind_options_set(self._bind, opt_key,
-                                 pkey_file.as_ptr() as *const libc::c_void),
+            server::ssh_bind_options_set(self._bind, opt_key,
+                                         pkey_file.as_ptr() as *const libc::c_void),
             self._bind
         )
     }
 
     pub fn listen(&self) -> Result<(),&'static str> {
         assert!(!self._bind.is_null());
-        check_ssh_ok!(ssh_bind_listen(self._bind), self._bind)
+        check_ssh_ok!(server::ssh_bind_listen(self._bind), self._bind)
     }
 
     pub fn accept(&self) -> Result<SSHSession, &'static str> {
         assert!(!self._bind.is_null());
         let session = try!(SSHSession::new(None));
         try!(check_ssh_ok!(
-            ssh_bind_accept(self._bind, mem::transmute(session.raw())),
+            server::ssh_bind_accept(self._bind, mem::transmute(session.raw())),
             self._bind
         ));
         Ok(session)
@@ -93,7 +94,7 @@ impl SSHBind {
     pub fn get_session(&self) -> Result<SSHSession, &'static str> {
         assert!(!self._bind.is_null());
         let session = try!(self.accept());
-        try!(session.handle_key_exchange());
+        try!(check_ssh_ok!(server::ssh_handle_key_exchange(session.raw())));
         Ok(session)
     }
 
